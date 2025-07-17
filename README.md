@@ -1,11 +1,10 @@
-```markdown
 # Aave V2 Wallet Credit Scoring
 
 ## Overview
 This project develops a machine learning model to assign credit scores (0–1000) to wallets interacting with the Aave V2 protocol on Polygon, based on transaction data (~87MB JSON). Higher scores indicate reliable behavior (e.g., timely repayments, low risk), while lower scores reflect risky or exploitative behavior (e.g., frequent liquidations).
 
 ## Method
-We use unsupervised learning (K-Means clustering) to group wallets by transaction behavior, followed by a scoring mechanism. Features include transaction counts, USD-normalized volumes, repayment ratios, and risk indicators. The model’s clustering quality is validated using the silhouette score.
+We use unsupervised learning (K-Means clustering) to group wallets by transaction behavior, followed by a scoring mechanism. Features include transaction counts, USD-normalized volumes, repayment ratios, and risk indicators.
 
 ## Architecture
 - **Input**: JSON file (`data/user-wallet-transactions.json`) with fields like `userWallet`, `action`, `timestamp`, and `actionData` (amount, assetSymbol, assetPriceUSD).
@@ -32,8 +31,8 @@ We use unsupervised learning (K-Means clustering) to group wallets by transactio
 - Optimize for larger datasets using `dask` or `pyspark`.
 
 ## Validation
-- **Clustering Quality**: Silhouette score (printed during execution) measures clustering coherence (0.5–1.0 is good).
-- **Score Logic**: Manual inspection of high/low-score wallets confirms alignment with behavior (e.g., high repayment → high score, liquidations → low score).
+- **Clustering Quality**: Silhouette score to ensure well-separated clusters.
+- **Score Logic**: Manual inspection of high/low-score wallets to confirm alignment with behavior (e.g., high repayment → high score, liquidations → low score).
 - **Robustness**: Tested on data subsets for consistency.
 
 ## Setup
@@ -44,4 +43,3 @@ We use unsupervised learning (K-Means clustering) to group wallets by transactio
 ## Notes
 - Handles missing/malformed data in `actionData` fields.
 - Uses `include_groups=False` in pandas `apply` to avoid FutureWarnings.
-```
