@@ -368,10 +368,12 @@ def calculate_risk_scores(features):
     
     features['score'] = scores
     return features
-
+import os
+from dotenv import load_dotenv
+load_dotenv()
 def main():
     # Configuration
-    ETHERSCAN_API_KEY = "A6PF7RSW8XNY8TM2DBA7BTTIJ1GW42NIVH"  
+    ETHERSCAN_API_KEY = os.getenv("ETHERSCAN_API_KEY") 
     WALLET_CSV_FILE = "Wallet.csv"  # Match your file name
     
     print(f"Starting main function at {datetime.now()}")
