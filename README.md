@@ -1,45 +1,160 @@
-# Aave V2 Wallet Credit Scoring
+## Assignment Objectives
 
-## Overview
-This project develops a machine learning model to assign credit scores (0–1000) to wallets interacting with the Aave V2 protocol on Polygon, based on transaction data (~87MB JSON). Higher scores indicate reliable behavior (e.g., timely repayments, low risk), while lower scores reflect risky or exploitative behavior (e.g., frequent liquidations).
+The primary goal is to develop a scalable risk assessment model that can:
+- Analyze wallet transaction histories from Compound V2/V3 protocols
+- Extract meaningful behavioral features from on-chain data
+- Generate reliable risk scores for lending and borrowing activities
+- Provide transparent scoring methodology with clear justifications
 
-## Method
-We use unsupervised learning (K-Means clustering) to group wallets by transaction behavior, followed by a scoring mechanism. Features include transaction counts, USD-normalized volumes, repayment ratios, and risk indicators.
+## Technical Implementation
 
-## Architecture
-- **Input**: JSON file (`data/user-wallet-transactions.json`) with fields like `userWallet`, `action`, `timestamp`, and `actionData` (amount, assetSymbol, assetPriceUSD).
-- **Processing**:
-  1. Load JSON and normalize amounts to USD using token decimals (6 for USDC, 18 for WMATIC/DAI) and `assetPriceUSD`.
-  2. Engineer features per wallet: transaction counts (deposits, borrows, repays, redeems, liquidations), USD volumes, ratios (repay-to-borrow, borrow-to-deposit), wallet age, and transaction frequency.
-  3. Scale features using `StandardScaler`.
-  4. Cluster wallets into 5 groups using K-Means (tunable via silhouette score).
-  5. Assign scores: Reliable clusters (800–1000), moderate (400–800), risky (0–400), with adjustments based on repayment and risk features.
-  6. Save scores to `wallet_scores.csv` and generate a score distribution chart (`score_distribution.json` and optional PNG).
-- **Libraries**: `pandas`, `scikit-learn`, `numpy`, `matplotlib`.
+### Data Collection Method
 
-## Processing Flow
-1. Parse JSON into a DataFrame.
-2. Convert transaction amounts to USD, handling token decimals and errors.
-3. Aggregate features by `userWallet` (e.g., total deposits, repay-to-borrow ratio).
-4. Normalize features and apply K-Means clustering.
-5. Assign scores based on cluster and feature adjustments.
-6. Output scores and visualize distribution.
+The system utilizes the Etherscan API to retrieve comprehensive transaction data for each wallet address. The data collection process includes:
 
-## Extensibility
-- Add features: Collateral ratios, interest rate analysis.
-- Switch to supervised learning with labeled data.
-- Optimize for larger datasets using `dask` or `pyspark`.
+- **Transaction Retrieval**: Fetching complete transaction histories for all 100 wallet addresses
+- **Protocol Filtering**: Identifying interactions specifically with Compound V2 and V3 contracts
+- **Function Analysis**: Parsing transaction input data to classify specific DeFi actions (supply, borrow, repay, liquidation)
+- **Data Validation**: Ensuring transaction integrity and filtering out failed transactions
 
-## Validation
-- **Clustering Quality**: Silhouette score to ensure well-separated clusters.
-- **Score Logic**: Manual inspection of high/low-score wallets to confirm alignment with behavior (e.g., high repayment → high score, liquidations → low score).
-- **Robustness**: Tested on data subsets for consistency.
+### Feature Engineering
 
-## Setup
-1. Install dependencies: `pip install -r requirements.txt`.
-2. Place `user-wallet-transactions.json` in `data/`.
-3. Run: `python score_wallets.py`.
+The risk assessment model incorporates 19 distinct features organized into several categories:
 
-## Notes
-- Handles missing/malformed data in `actionData` fields.
-- Uses `include_groups=False` in pandas `apply` to avoid FutureWarnings.
+**Transaction Volume Metrics**
+- Total transaction count and frequency patterns
+- Action-specific counts (supplies, borrows, repayments, withdrawals)
+- Gas usage patterns as indicators of user sophistication
+
+**Behavioral Risk Indicators**
+- Liquidation history and frequency
+- Borrow-to-repay ratios indicating repayment reliability
+- Supply-to-redeem ratios showing capital management patterns
+
+**Activity Patterns**
+- Wallet age and transaction frequency over time
+- Recent activity levels and engagement consistency
+- Protocol diversification across different Compound markets
+
+**Risk Signals**
+- Direct liquidation events (highest risk indicator)
+- Poor repayment behavior patterns
+- Extended periods of inactivity
+
+### Scoring Methodology
+
+The risk scoring algorithm employs a weighted point system starting from a neutral baseline of 500 points:
+
+**Positive Score Factors (+points)**
+- Transaction history depth (up to +200 points)
+- Consistent repayment behavior (up to +150 points)
+- Regular protocol engagement (+25-50 points)
+- Portfolio diversification across markets (+15-30 points)
+- Efficient gas usage patterns (+25 points)
+
+**Negative Score Factors (-points)**
+- Liquidation events (-400 points per occurrence)
+- Poor repayment ratios (-100 points)
+- Extended inactivity periods (-100 points)
+- No transaction history (-300 points)
+
+**Score Ranges**
+- **High Risk (0-300)**: Wallets with liquidation history, poor repayment patterns, or no activity
+- **Medium Risk (301-600)**: Wallets with mixed behavioral patterns or limited history
+- **Low Risk (601-1000)**: Wallets demonstrating consistent, responsible DeFi usage
+
+### Risk Indicator Justification
+
+The selected risk indicators are based on established DeFi lending principles:
+
+1. **Liquidation Events**: Direct evidence of over-leveraging and poor risk management
+2. **Repayment Ratios**: Historical reliability in meeting debt obligations
+3. **Activity Consistency**: Engaged users demonstrate better understanding of protocol risks
+4. **Protocol Diversification**: Risk distribution across multiple markets indicates sophistication
+5. **Transaction Patterns**: Regular, efficient interactions suggest experienced users
+
+## Project Structure
+
+```
+wallet-risk-scoring/
+├── main.py                     # Primary execution script
+├── Wallet.csv                  # Input wallet addresses (100 wallets)
+├── wallet_scores.csv           # Final output with risk scores
+├── compound_transactions_raw.csv # Raw transaction data
+├── wallet_features.csv         # Engineered features dataset
+└── README.md                   # This documentation
+```
+
+## Usage Instructions
+
+### Prerequisites
+- Python 3.7+
+- Required packages: pandas, requests, scikit-learn, numpy
+- Valid Etherscan API key
+
+### Execution Steps
+
+1. **Setup Environment**
+   ```bash
+   pip install pandas requests scikit-learn numpy
+   ```
+
+2. **Configure API Access**
+   - Update `ETHERSCAN_API_KEY` variable in main.py
+   - Ensure wallet addresses are in Wallet.csv
+
+3. **Run Analysis**
+   ```bash
+   python main.py
+   ```
+
+4. **Review Results**
+   - Final scores: `wallet_scores.csv`
+   - Feature analysis: `wallet_features.csv`
+   - Raw data: `compound_transactions_raw.csv`
+
+## Output Format
+
+The final deliverable is a CSV file with the required structure:
+
+| wallet_id | score |
+|-----------|--------|
+| 0xfaa0768bde629806739c3a4620656c5d26f44ef2 | 732 |
+| 0x... | ... |
+
+## Model Validation
+
+The scoring system includes several validation mechanisms:
+- Score normalization ensuring 0-1000 range compliance
+- Default handling for wallets without transaction history
+- Rate limiting for API calls to ensure data integrity
+- Error handling for incomplete or corrupted transaction data
+
+## Scalability Considerations
+
+The system is designed for scalability through:
+- Modular architecture separating data collection, feature engineering, and scoring
+- Efficient API usage with built-in rate limiting
+- Configurable parameters for different risk tolerance levels
+- Extensible feature set for additional risk indicators
+
+## Limitations and Future Improvements
+
+**Current Limitations**
+- Dependency on Etherscan API rate limits
+- Focus limited to Compound protocol interactions
+- Historical data analysis without predictive modeling
+
+**Potential Enhancements**
+- Integration with additional DeFi protocols (Aave, MakerDAO)
+- Machine learning models for predictive risk assessment
+- Real-time monitoring capabilities
+- Cross-chain analysis integration
+
+## Data Sources
+
+- **Primary**: Etherscan API for Ethereum transaction data
+- **Protocols**: Compound V2 and V3 smart contracts
+- **Wallet Dataset**: 100 addresses provided via Google Sheets
+
+This risk scoring system provides a robust foundation for DeFi lending risk assessment while maintaining transparency and scalability for future enhancements.
